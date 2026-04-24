@@ -48,7 +48,7 @@ app.get('/resep/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query(
-      'SELECT * FROM resep WHERE id = ?',
+      'SELECT * FROM resep_ayam WHERE id = ?',
       [id]
     );
 
@@ -61,7 +61,7 @@ app.get('/resep/:id', async (req, res) => {
 // 📌 3. Endpoint khusus untuk AI (clean text)
 app.get('/resep-ai', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM resep');
+    const [rows] = await pool.query('SELECT * FROM resep_ayam');
 
     const formatted = rows.map(item => ({
       id: item.id,
