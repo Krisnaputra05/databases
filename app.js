@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
 // 📌 1. GET semua resep
 app.get("/all", async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT * FROM resep_ayam");
+    const [rows] = await pool.query("SELECT * FROM pegawai");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
