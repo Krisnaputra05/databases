@@ -1,42 +1,47 @@
-require('dotenv').config();
-const express = require('express');
-const mysql = require('mysql2/promise');
-const cors = require('cors');
+require("dotenv").config();
+const express = require("express");
+const mysql = require("mysql2/promise"); // Konsisten gunakan mysql2 dengan promise
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 🔌 Create connection pool
-const pool = mysql.createPool(process.env.MYSQL_PUBLIC_URL || {
+// 🔌 Konfigurasi Database
+const dbConfig = {
   host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
   waitForConnections: true,
   connectionLimit: 10,
-});
+  queueLimit: 0,
+};
 
-// Test connection
-pool.getConnection()
-  .then(conn => {
-    console.log('✅ Database terhubung!');
-    conn.release();
-  })
-  .catch(err => {
-    console.error('❌ Gagal koneksi database:', err.message);
-  });
+// 🏗️ Membuat Pool Connection
+const pool = mysql.createPool(dbConfig);
+
+// Test koneksi saat startup
+(async () => {
+  try {
+    const connection = await pool.getConnection();
+    console.log("✅ Database terhubung ke Filess.io!");
+    connection.release();
+  } catch (err) {
+    console.error("❌ Gagal koneksi database:", err.message);
+  }
+})();
 
 // ✅ TEST API
-app.get('/', (req, res) => {
-  res.send('API jalan 🚀');
+app.get("/", (req, res) => {
+  res.send("API Berjalan Lancar 🚀");
 });
 
-// 📌 1. GET semua resep (untuk AI / chunking)
-app.get('/resep', async (req, res) => {
+// 📌 1. GET semua resep
+app.get("/all", async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM resep_ayam');
+    const [rows] = await pool.query("SELECT * FROM resep_ayam");
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -44,14 +49,16 @@ app.get('/resep', async (req, res) => {
 });
 
 // 📌 2. GET resep by ID
-app.get('/resep/:id', async (req, res) => {
+app.get("/resep/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query(
-      'SELECT * FROM resep_ayam WHERE id = ?',
-      [id]
-    );
+    const [rows] = await pool.query("SELECT * FROM resep_ayam WHERE id = ?", [
+      id,
+    ]);
 
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Resep tidak ditemukan" });
+    }
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -59,18 +66,14 @@ app.get('/resep/:id', async (req, res) => {
 });
 
 // 📌 3. Endpoint khusus untuk AI (clean text)
-app.get('/resep-ai', async (req, res) => {
+app.get("/resep-ai", async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM resep_ayam');
+    const [rows] = await pool.query("SELECT * FROM resep_ayam");
 
-    const formatted = rows.map(item => ({
+    const formatted = rows.map((item) => ({
       id: item.id,
       title: item.title,
-      content: `
-Judul: ${item.title}
-Ingredients: ${item.ingredients}
-Steps: ${item.steps}
-      `.trim()
+      content: `Judul: ${item.title}\nIngredients: ${item.ingredients}\nSteps: ${item.steps}`,
     }));
 
     res.json(formatted);
